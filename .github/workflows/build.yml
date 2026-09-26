@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,7 +35,23 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
+      - name: Verify APK
+        run: |
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          AAPT=$(ls $ANDROID_HOME/build-tools/*/aapt | tail -1)
+          APKSIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
+          $AAPT dump badging $APK | grep -E "package|sdkVersion|native-code"
+          $APKSIGNER verify --verbose $APK
+          cp $APK hello-mitul.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: hello-mitul-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: hello-mitul.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Hello Mitul build ${{ github.run_number }}
+          files: hello-mitul.apk
